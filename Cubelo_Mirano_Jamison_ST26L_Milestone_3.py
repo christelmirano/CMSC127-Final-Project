@@ -1,3 +1,53 @@
+import mysql.connector
+
+
+mydb = mysql.connector.connect(
+   host="localhost",
+   user="root",
+   password="useruser",
+   database="org_membership"  # Replace with your database name
+)
+
+
+mycursor = mydb.cursor()
+
+
+# Read the SQL file with correct encoding
+with open('C:/Users/Leon/Downloads/try_milestone3.sql', 'r', encoding='utf-8') as f:
+   sql_script = f.read()
+
+
+# Split statements (note: this may not handle complex SQL like procedures)
+statements = sql_script.split(';')
+
+
+for statement in statements:
+   statement = statement.strip()
+   if statement:
+       try:
+           mycursor.execute(statement)
+
+
+           # 💡 Consume all results before executing the next
+           while mycursor.nextset():
+               pass
+
+
+       except mysql.connector.Error as err:
+           print(f"Error in statement: {statement}")
+           print(err)
+
+
+mydb.commit()
+print("SQL file imported successfully.")
+
+mycursor.execute("SELECT * FROM Member")
+myresult = mycursor.fetchall()
+for x in myresult:
+  print(x)
+
+
+
 def display_menu():
     while True: 
       print("\n" + "="*50)
