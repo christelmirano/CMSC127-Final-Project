@@ -37,7 +37,7 @@ print("SQL file imported successfully.")
 
 
 def display_menu():
-    while True: 
+    while True:
       print("\n" + "="*50)
       print("ORGANIZATION MANAGEMENT SYSTEM".center(50))
       print("="*50)
@@ -49,13 +49,13 @@ def display_menu():
       print("="*50)
 
       choice = input("Enter your choice: ")
-      
+
       if choice == "1":
           view_all_orgs()
       elif choice == "2":
           update_database()
       elif choice == "3":
-          insert_database() 
+          insert_database()
       elif choice == "4":
           delete_database()
       elif choice == "0":
@@ -98,7 +98,7 @@ def view_all_orgs():
     elif orgIdInResult == False:
       print("Organization not found.\n")
       continue
-    else: 
+    else:
       display_view_an_org_menu(orgId)
 
 
@@ -126,7 +126,7 @@ def display_view_an_org_menu(orgId):
 
 def view_org_committees(orgId):
   print("\nVIEW COMMITTEES\n")
-  while True: 
+  while True:
     print("[1] View all")
     print("[2] View committee members")
     print("[0] Back")
@@ -181,7 +181,7 @@ def view_committee_members(orgId, committee):
 
 def view_org_members(orgId):
   print("\nVIEW MEMBERS\n")
-  while True: 
+  while True:
     print("[1] View all")
     print("[2] View a member")
     print("[3] View membership status")
@@ -214,32 +214,131 @@ def view_org_members(orgId):
     else:
       print("Invalid choice. Please try again.\n")
 
-def show_all_members(orgId):
-  print("\nshow_all_members: ", orgId, "\n") # PLACEHOLDER: display all members here
-  mycursor.execute("SELECT * FROM Member")
-  result = mycursor.fetchall()
-  for x in result:
-    print(x)
 
-def  show_a_member(memId, orgId):
-  print("\nshow_a_member: ", "\n organization id: ",orgId, "\n member: ", memId, "\n") # PLACEHOLDER: display member here
+def show_all_members(orgId):
+  orgId = "ORG" + orgId
+  query = ("SELECT m.student_id AS 'Student Number', CONCAT(first_name, ' ', last_name) AS Name, "
+           " committee AS Committee, role AS Role FROM member m "
+           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+           "JOIN organization o ON mho.organization_id = o.organization_id "
+           "WHERE o.organization_id = %s")
+  mycursor.execute(query, (orgId,))
+  result = mycursor.fetchall()
+  headers = [i[0] for i in mycursor.description]
+  print(tabulate(result, headers=headers, tablefmt="pretty"))
+
+
+def show_a_member(memId, orgId):
+  orgId = "ORG" + orgId
+  query = ("SELECT m.student_id AS 'Student Number', CONCAT(first_name, ' ', last_name) AS Name, "
+           "committee AS Committee, role AS Role, status AS Status, batch AS Batch, gender AS Gender FROM member m "
+           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+           "JOIN organization o ON mho.organization_id = o.organization_id "
+           "WHERE o.organization_id = %s AND m.student_id = %s")
+  mycursor.execute(query, (orgId, memId))
+  result = mycursor.fetchall()
+  if not result:
+    print("\nStudent number not found.\n")
+    return
+  headers = [i[0] for i in mycursor.description]
+  print(tabulate(result, headers=headers, tablefmt="pretty"))
+
 
 def show_mem_status(orgId):
-  print("\nshow_mem_status: ", orgId, "\n") # PLACEHOLDER: display status here
+  orgId = "ORG" + orgId
+  query = ("SELECT m.student_id AS 'Student Number', CONCAT(first_name, ' ', last_name) AS Name, mpf.payment_status AS 'Payment Status' "
+           "FROM member m "
+           "JOIN member_has_organization_and_fee mhoaf ON m.student_id = mhoaf.student_id "
+           "JOIN organization o ON mhoaf.organization_id = o.organization_id "
+           "JOIN fee f ON mhoaf.payment_id = f.payment_id "
+           "JOIN member_pays_fee mpf ON f.payment_id = mpf.payment_id "
+           "WHERE o.organization_id = %s AND status = 'Active' AND mpf.payment_status = 'Paid' ")
+  mycursor.execute(query, (orgId,))
+  activeresult = mycursor.fetchall()
+
+  if not activeresult:
+    print("\nNo active members found.\n")
+  else:
+    print(tabulate(activeresult, headers=["Active", "Name", "Payment Status (Membership)"], tablefmt="pretty"))
+
+  query = ("SELECT m.student_id AS 'Student Number', CONCAT(first_name, ' ', last_name) AS Name FROM member m "
+           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+           "JOIN organization o ON mho.organization_id = o.organization_id "
+           "WHERE o.organization_id = %s AND status = 'Inactive'")
+  mycursor.execute(query, (orgId,))
+  inactiveresult = mycursor.fetchall()
+
+  if not inactiveresult:
+    print("\nNo inactive members found.\n")
+  else:
+    print(tabulate(inactiveresult, headers=["Inactive", "Name"], tablefmt="pretty"))
+
+  query = ("SELECT m.student_id AS 'Student Number', CONCAT(first_name, ' ', last_name) AS Name FROM member m "
+           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+           "JOIN organization o ON mho.organization_id = o.organization_id "
+           "WHERE o.organization_id = %s AND status = 'Expelled'")
+  mycursor.execute(query, (orgId,))
+  expelledresult = mycursor.fetchall()
+
+  if not expelledresult:
+    print("\nNo expelled members found.\n")
+  else:
+    print(tabulate(expelledresult, headers=["Expelled", "Name"], tablefmt="pretty"))
+
+  query = ("SELECT m.student_id AS 'Student Number', CONCAT(first_name, ' ', last_name) AS Name FROM member m "
+           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+           "JOIN organization o ON mho.organization_id = o.organization_id "
+           "WHERE o.organization_id = %s AND status = 'Suspended'")
+  mycursor.execute(query, (orgId,))
+  suspendedresult = mycursor.fetchall()
+
+  if not suspendedresult:
+    print("\nNo suspended members found.\n")
+  else:
+    print(tabulate(suspendedresult, headers=["Suspended", "Name"], tablefmt="pretty"))
+
+  query = ("SELECT m.student_id AS 'Student Number', CONCAT(first_name, ' ', last_name) AS Name FROM member m "
+           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+           "JOIN organization o ON mho.organization_id = o.organization_id "
+           "WHERE o.organization_id = %s AND status = 'Alumni'")
+  mycursor.execute(query, (orgId,))
+  alumniresult = mycursor.fetchall()
+
+  if not alumniresult:
+    print("\nNo alumni found.\n")
+  else:
+    print(tabulate(alumniresult, headers=["Alumni", "Name"], tablefmt="pretty"))
+
 
 def show_batches(orgId):
-  print("\nshow_batches: ", orgId, "\n") # PLACEHOLDER: display batches here
+  orgId = "ORG" + orgId
+  query = ("SELECT SUBSTRING(m.student_id, 1, 4) AS 'Batch', CONCAT(first_name, ' ', last_name) AS Name FROM member m "
+           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+           "JOIN organization o ON mho.organization_id = o.organization_id "
+           "WHERE o.organization_id = %s ORDER BY m.student_id")
+  mycursor.execute(query, (orgId,))
+  result = mycursor.fetchall()
+
+  headers = [i[0] for i in mycursor.description]
+  print(tabulate(result, headers=headers, tablefmt="pretty"))
+
 
 def show_deg_prog(orgId):
-  print("\nshow_deg_prog: ", orgId, "\n") # PLACEHOLDER: display degprogs here
+  orgId = "ORG" + orgId
+  query = ("SELECT degree_program AS 'Degree Program', CONCAT(first_name, ' ', last_name) AS Name FROM member m "
+           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+           "JOIN organization o ON mho.organization_id = o.organization_id "
+           "WHERE o.organization_id = %s ORDER BY m.degree_program")
+  mycursor.execute(query, (orgId,))
+  result = mycursor.fetchall()
 
-
-      
+  headers = [i[0] for i in mycursor.description]
+  print(tabulate(result, headers=headers, tablefmt="pretty"))
 
 
 def view_org_fees(orgId):
   print("\nVIEW FEES\n")
-  while True: 
+  while True:
     print("[1] View all")
     print("[2] View a fee")
     print("[3] View history")
@@ -266,31 +365,108 @@ def view_org_fees(orgId):
     else:
       print("Invalid choice. Please try again.\n")
 
-def show_all_fees(orgId):
-  print("\nshow_all_fees: ", orgId, "\n") # PLACEHOLDER: display all fee here
 
-def show_a_fee(feeID,orgId):
-  print("\nshow_a_fee: ", "\n organization id: ",orgId, "\n fee: ", feeID, "\n") # PLACEHOLDER: display a fee here
+def show_all_fees(orgId):
+  orgId = "ORG" + orgId
+  query = ("SELECT SUBSTRING(payment_id, 4) AS ID, due_date AS 'Due Date', purpose AS Purpose, amount AS Amount "
+           "FROM fee f JOIN organization o ON f.organization_id = o.organization_id "
+           "WHERE f.organization_id = %s")
+  mycursor.execute(query, (orgId,))
+  result = mycursor.fetchall()
+  if not result:
+    print("\nNo fees found.\n")
+    return
+  headers = [i[0] for i in mycursor.description]
+  print(tabulate(result, headers=headers, tablefmt="pretty"))
+
+
+def show_a_fee(feeID, orgId):
+  orgId = "ORG" + orgId
+  feeID = "FEE" + feeID
+  query = ("SELECT SUBSTRING(f.payment_id, 4) AS 'ID', due_date AS 'Due Date', purpose AS Purpose, amount AS Amount "
+           "FROM fee f JOIN organization o on f.organization_id = o.organization_id " 
+           "WHERE o.organization_id = %s AND f.payment_id = %s")
+  mycursor.execute(query, (orgId, feeID))
+  result = mycursor.fetchall()
+  if not result:
+    print("\nFee not found.\n")
+    return
+  headers = [i[0] for i in mycursor.description]
+  print(tabulate(result, headers=headers, tablefmt="pretty"))
+
 
 def show_history(orgId):
-  print("\nshow_history: ", orgId, "\n") # PLACEHOLDER: display past due fees here
-
+  orgId = "ORG" + orgId
+  query = ("SELECT SUBSTRING(f.payment_id, 4) AS 'ID', due_date AS 'Due Date', purpose AS Purpose, amount AS Amount "
+           "FROM fee f JOIN organization o on f.organization_id = o.organization_id "
+           "WHERE o.organization_id = %s AND f.due_date < CURDATE()")
+  mycursor.execute(query, (orgId,))
+  result = mycursor.fetchall()
+  if not result:
+    print("\nNo past fees.\n")
+    return
+  print("Showing all past fees: ")
+  headers = [i[0] for i in mycursor.description]
+  print(tabulate(result, headers=headers, tablefmt="pretty"))
   showStatus = input("Show members on-time status? (Y/N): ")
   if showStatus == 'Y':
     show_ontime_status(orgId)
 
+
 def show_pending_fees(orgId):
-  print("\nshow_pending_fees: ", orgId, "\n") # PLACEHOLDER: display recurring fees here
+  orgId = "ORG" + orgId
+  query = ("SELECT SUBSTRING(f.payment_id, 4) AS 'ID', due_date AS 'Due Date', purpose AS Purpose, amount AS Amount "
+           "FROM fee f JOIN organization o on f.organization_id = o.organization_id "
+           "WHERE o.organization_id = %s AND f.due_date > CURDATE()")
+  mycursor.execute(query, (orgId,))
+  result = mycursor.fetchall()
+  if not result:
+    print("\nNo pending fees.\n")
+    return
+  print("Showing all pending fees: ")
+  headers = [i[0] for i in mycursor.description]
+  print(tabulate(result, headers=headers, tablefmt="pretty"))
 
   showStatus = input("Show members payment status? (Y/N): ")
   if showStatus == 'Y':
     show_payment_status(orgId)
 
+
 def show_ontime_status(orgId):
-  print("\nshow_ontime_status: ", orgId, "\n") # PLACEHOLDER: display ontime status
+  query = ("SELECT mpf.student_id AS 'Student Number', CONCAT(m.first_name, ' ', m.last_name) AS 'Name', "
+           "mpf.payment_id AS 'Payment ID', mpf.payment_status AS 'Status', mpf.on_time_status AS 'On Time', payment_date AS 'Payment Date' "
+           "FROM member_pays_fee mpf "
+           "JOIN member_has_organization_and_fee mhoaf on mpf.student_id = mhoaf.student_id "
+           "JOIN organization o ON mhoaf.organization_id = o.organization_id "
+           "JOIN member m ON mhoaf.student_id = m.student_id "
+           "WHERE o.organization_id = %s AND mpf.on_time_status = 'On time' ")
+  mycursor.execute(query, (orgId,))
+  result = mycursor.fetchall()
+  if not result:
+    print("\nNo past fees.\n")
+    return
+  print("Showing all members who paid on time: ")
+  headers = [i[0] for i in mycursor.description]
+  print(tabulate(result, headers=headers, tablefmt="pretty"))
+
 
 def show_payment_status(orgId):
-  print("\nshow_payment_status: ", orgId, "\n") # PLACEHOLDER: display payment status
+  query = ("SELECT mpf.student_id AS 'Student Number', CONCAT(m.first_name, ' ', m.last_name) AS 'Name', "
+           "mpf.payment_id AS 'Payment ID', mpf.payment_status AS 'Status', mpf.on_time_status AS 'On Time', payment_date AS 'Payment Date' "
+           "FROM member_pays_fee mpf "
+           "JOIN member_has_organization_and_fee mhoaf on mpf.student_id = mhoaf.student_id "
+           "JOIN organization o ON mhoaf.organization_id = o.organization_id "
+           "JOIN member m ON mhoaf.student_id = m.student_id "
+           "JOIN fee f ON mhoaf.payment_id = f.payment_id "
+           "WHERE o.organization_id = %s AND CURDATE() < f.due_date ")
+  mycursor.execute(query, (orgId,))
+  result = mycursor.fetchall()
+  if not result:
+    print("\nNo past fees.\n")
+    return
+  print("Showing all members' payment status: ")
+  headers = [i[0] for i in mycursor.description]
+  print(tabulate(result, headers=headers, tablefmt="pretty"))
 
 
 ########################### UPDATE ################################
@@ -311,11 +487,12 @@ def update_database():
     # elif orgId != PLACEHOLDER: palagyan ng validation if wala sa choices yung sinagot nila
     # print("Organization not found.\n")
     # continue
-    else: 
+    else:
       display_update_an_org_menu(orgId)
 
+
 def display_update_an_org_menu(orgId):
-  while True: 
+  while True:
     print("[1] Update a committee")
     print("[2] Update a member")
     print("[3] Update a fee")
@@ -337,10 +514,11 @@ def display_update_an_org_menu(orgId):
     else:
       print("Invalid choice. Please try again.\n")
 
+
 def update_a_committee(orgId):
   print("\nUPDATE A COMMITTEE\n")
   print("TABLE\n") # PLACEHOLDER : show committees of the org
-  while True: 
+  while True:
     print("[1] Delete a committee")
     print("[2] Rename a committee")
     print("[0] Back")
@@ -373,17 +551,18 @@ def update_a_committee(orgId):
     else:
       print("Invalid choice. Please try again.\n")
 
+
 def delete_a_committee(orgId, committee):
   print("\ndelete_a_committee\n") # PLACEHOLDER
+
 
 def rename_a_committe(orgId, committee, newName):
   print("\nrename_a_committe\n") # PLACEHOLDER
 
 
-
 def update_a_member(orgId):
-  print("\nUPDATE A MEMBER\n") 
-  while True: 
+  print("\nUPDATE A MEMBER\n")
+  while True:
     print("[1] Update active status")
     print("[2] Update role")
     print("[3] Update degree program")
@@ -433,26 +612,30 @@ def update_a_member(orgId):
     else:
       print("Invalid choice. Please try again.\n")
 
+
 def update_active_status(orgId, memId, update):
   print("\nupdate_active_status\n") # PLACEHOLDER
+
 
 def update_role(orgId, memId, update):
   print("\nupdate_role\n") # PLACEHOLDER
 
+
 def update_degree_program(orgId, memId, update):
   print("\nupdate_degree_program\n") # PLACEHOLDER
 
+
 def update_gender(orgId, memId, update):
   print("\nupdate_gender\n") # PLACEHOLDER
+
 
 def update_member_committee(orgId, memId, update):
   print("\nupdate_member_committee\n") # PLACEHOLDER
 
 
-
 def update_a_fee(orgId):
-  print("\nUPDATE A FEE\n") 
-  while True: 
+  print("\nUPDATE A FEE\n")
+  while True:
     print("[1] Update due date")
     print("[2] Update purpose")
     print("[3] Update amount")
@@ -484,6 +667,7 @@ def update_a_fee(orgId):
     else:
       print("Invalid choice. Please try again.\n")
 
+
 def update_fee_due(orgId, feeId, update):
   print("\nupdate_fee_due\n") # PLACEHOLDER
   while True:
@@ -491,23 +675,25 @@ def update_fee_due(orgId, feeId, update):
     if update==None or update=="":
       print("Nothing updated!\n")
       continue
-    else: 
+    else:
       # PLACEHOLDER place code here
       break
-    
+
+
 def update_fee_purpose(orgId, feeId, update):
   print("\nupdate_fee_purpose\n") # PLACEHOLDER
+
 
 def update_fee_amount(orgId, feeId, update):
   print("\nupdate_fee_amount\n") # PLACEHOLDER
 
 
 def update_member_fee_status(orgId):
-  print("\nUPDATE A MEMBER FEE STATUS\n") 
-  while True: 
+  print("\nUPDATE A MEMBER FEE STATUS\n")
+  while True:
     print("[1] Update Payment Status")
     print("[0] Back")
-    
+
     memId = input("Enter student id: ")
     feeId = input("Enter fee id: ")
     choice = input("Select a choice: ")
@@ -515,7 +701,7 @@ def update_member_fee_status(orgId):
     if feeId==None or feeId=="":
       print("Fee id cannot be \n")
       continue
-      
+
     if memId==None or memId=="":
       print("Student id cannot be empty!\n")
       continue
@@ -541,8 +727,10 @@ def update_member_fee_status(orgId):
     else:
       print("Invalid choice. Please try again.\n")
 
+
 def update_member_payment_status(orgId, feeId, memId, date):
   print("\nupdate_member_payment_status\n") # PLACEHOLDER
+
 
 ########################### INSERT ################################
 def insert_database():
@@ -570,8 +758,9 @@ def insert_database():
     else:
       print("Invalid choice. Please try again.\n")
 
+
 def insert_new_member():
-  while True: 
+  while True:
     orgId = input("Enter organization ID: ")
     if orgId==None or orgId=="":
         print("Organization ID cannot be empty!\n")
@@ -594,7 +783,7 @@ def insert_new_member():
       print("You missed a field!\n")
       continue
     # PLACEHOLDER : add proper validation for the input para sa kung ano lang pwede ilagay
-    # elif  
+    # elif
     #   print("Invalid input. Must be either President/Vice President")
     #   continue
     else:
@@ -602,13 +791,16 @@ def insert_new_member():
       display_new_member(newMemId)
       break
 
+
 def adding_member(orgId, fname, lname, degprog, batch, committee, role, status, gender, semester):
   print("\ninsert_new_member\n") # PLACEHOLDER
   newMemId = "dummyId" # PLACEHOLDER
   return newMemId
 
+
 def display_new_member(newMemId):
   print("\ndisplay_new_member\n") # PLACEHOLDER
+
 
 def insert_new_organization():
   while True:
@@ -619,24 +811,27 @@ def insert_new_organization():
       print("You missed a field!\n")
       continue
     # PLACEHOLDER : add proper validation for the input para sa kung ano lang pwede ilagay
-    # elif  
+    # elif
     #   print("Invalid input. Must be either President/Vice President")
     #   continue
-    else: 
+    else:
       orgId = adding_organization(orgName, orgType)
       display_new_organization(orgId)
       break
+
 
 def adding_organization(orgName, orgType):
   print("\nadding_organization\n") # PLACEHOLDER
   orgId = "dummyId"
   return orgId
 
+
 def display_new_organization(orgId):
   print("\ndisplay_new_organization\n") # PLACEHOLDER
 
+
 def insert_new_fee():
-  while True: 
+  while True:
     orgId = input("Enter organization ID: ")
     if orgId==None or orgId=="":
       print("Organization ID cannot be empty!\n")
@@ -653,7 +848,7 @@ def insert_new_fee():
       print("You missed a field!\n")
       continue
     # PLACEHOLDER : add proper validation for the input para sa kung ano lang pwede ilagay
-    # elif  
+    # elif
     #   print("Invalid input. Must be either President/Vice President")
     #   continue
     else:
@@ -661,21 +856,21 @@ def insert_new_fee():
       display_new_fee(newFeeId)
       break
 
+
 def adding_fee(orgId, purpose, amount, duedate):
   print("\nadding_fee\n") # PLACEHOLDER
   feeId = "dummyId"
   return feeId
 
+
 def display_new_fee(newFeeId):
   print("\ndisplay_new_fee\n") # PLACEHOLDER
-
-
 
 
 ########################### DELETE ################################
 def delete_database():
   print("\nDELETE FROM DATABASE\n")
-  while True: 
+  while True:
     print("[1] Delete an organization")
     print("[2] Delete an member")
     print("[0] Back to Home")
@@ -701,8 +896,8 @@ def delete_organization():
     # elif orgId != PLACEHOLDER: palagyan ng validation if wala sa choices yung sinagot nila
     # print("Organization not found.\n")
     # continue
-    
-    else: 
+
+    else:
       deleting_organization(orgId)
       break
 
@@ -727,7 +922,7 @@ def delete_member():
       # elif orgId != PLACEHOLDER: palagyan ng validation if wala sa database yung sinagot nila
       # print("Student ID not found.\n")
       # continue
-      else: 
+      else:
         deleting_member(orgId, memId)
         break
 
