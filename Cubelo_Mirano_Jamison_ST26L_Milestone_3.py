@@ -1,25 +1,23 @@
 import mysql.connector
+from tabulate import tabulate
 
 
 mydb = mysql.connector.connect(
    host="localhost",
    user="root",
    password="useruser",
-   database="org_membership"  # Replace with your database name
+   database="org_membership"
 )
 
 
 mycursor = mydb.cursor()
 
 
-# Read the SQL file with correct encoding
+# Read the SQL file with UTF-8 encoding
 with open('C:/Users/Leon/Downloads/try_milestone3.sql', 'r', encoding='utf-8') as f:
    sql_script = f.read()
 
-
-# Split statements (note: this may not handle complex SQL like procedures)
 statements = sql_script.split(';')
-
 
 for statement in statements:
    statement = statement.strip()
@@ -27,25 +25,15 @@ for statement in statements:
        try:
            mycursor.execute(statement)
 
-
-           # 💡 Consume all results before executing the next
            while mycursor.nextset():
                pass
-
 
        except mysql.connector.Error as err:
            print(f"Error in statement: {statement}")
            print(err)
 
-
 mydb.commit()
 print("SQL file imported successfully.")
-
-mycursor.execute("SELECT * FROM Member")
-myresult = mycursor.fetchall()
-for x in myresult:
-  print(x)
-
 
 
 def display_menu():
@@ -76,8 +64,10 @@ def display_menu():
       else:
           print("Invalid choice. Please try again.\n")
 
+
 def exit_system():
   print("exiting program...\n")
+
 
 ########################### VIEW ################################
 def view_all_orgs():
@@ -85,20 +75,32 @@ def view_all_orgs():
     print("\n"+"-"*50)
     print("ALL ORGANIZATIONS".center(50))
     print("-"*50)
-    print("\n TABLE \n") # PLACEHOLDER: display the organizations table here
-    print("\n"+"-"*50)
+    mycursor.execute("SELECT SUBSTRING(organization_id, 4) AS ID, organization_name AS Name, "
+                     "organization_type AS Type FROM organization")
+    result = mycursor.fetchall()
+    headers = [i[0] for i in mycursor.description]
+    print(tabulate(result, headers=headers, tablefmt="pretty"))
 
-    orgId = input("(Press ENTER to go back to home)\nSelect an organization to view:  ")
+    orgId = input("(Press ENTER to go back to home)\nSelect an organization to view (Enter ID):  ")
+    mycursor.execute("SELECT SUBSTRING(organization_id, 4) AS ID FROM organization")
+    result = mycursor.fetchall()
+    orgIdInResult = False
+
+    # Check if org id is in the database
+    for x in result:
+      if orgId in x:
+        orgIdInResult = True
     if orgId==None:
       print("Organization ID cannot be empty!\n")
       continue
     elif orgId=="":
       return
-    # elif orgId != PLACEHOLDER: palagyan ng validation if wala sa choices yung sinagot nila
-    # print("Organization not found.\n")
-    # continue
+    elif orgIdInResult == False:
+      print("Organization not found.\n")
+      continue
     else: 
       display_view_an_org_menu(orgId)
+
 
 def display_view_an_org_menu(orgId):
   while True:
@@ -120,8 +122,6 @@ def display_view_an_org_menu(orgId):
       break
     else:
       print("Invalid choice. Please try again.\n")
-  
-
 
 
 def view_org_committees(orgId):
@@ -147,13 +147,36 @@ def view_org_committees(orgId):
     else:
       print("Invalid choice. Please try again.\n")
 
+
 def view_all_committees(orgId):
-  print("\nview_all_committees: ", orgId, "\n") # PLACEHOLDER: display all committees here
+  print("")
+  print("Finance")
+  print("Logistics")
+  print("Media")
+  print("Events")
+  print("Executive")
+  print("Membership")
+  print("")
 
-def view_committee_members(orgId,  commitee):
-  print("\n\nview_committee_members: ", "\n organization id: ",orgId, "\n committee: ",commitee,  "\n") # PLACEHOLDER: display the committe members here
+  elements = [["Finance"], ["Logistics"], ["Media"], ["Events"], ["Executive"], ["Membership"]]
+  print(tabulate(elements, headers=["Committees"], tablefmt="pretty"))
 
 
+def view_committee_members(orgId, committee):
+  orgId = "ORG" + orgId
+  query = (
+    "SELECT m.student_id AS 'Student Number' , CONCAT(first_name, ' ', last_name) AS Name FROM member m "
+    "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+    "JOIN organization o ON mho.organization_id = o.organization_id "
+    "WHERE committee = %s AND o.organization_id = %s"
+  )
+  mycursor.execute(query, (committee, orgId))
+  result = mycursor.fetchall()
+  if not result:
+    print("No members of this committee found.")
+    return
+  headers = [i[0] for i in mycursor.description]
+  print(tabulate(result, headers=headers, tablefmt="pretty"))
 
 
 def view_org_members(orgId):
@@ -193,6 +216,10 @@ def view_org_members(orgId):
 
 def show_all_members(orgId):
   print("\nshow_all_members: ", orgId, "\n") # PLACEHOLDER: display all members here
+  mycursor.execute("SELECT * FROM Member")
+  result = mycursor.fetchall()
+  for x in result:
+    print(x)
 
 def  show_a_member(memId, orgId):
   print("\nshow_a_member: ", "\n organization id: ",orgId, "\n member: ", memId, "\n") # PLACEHOLDER: display member here
