@@ -1,40 +1,71 @@
+# MY SQL CONNECTION #############################################################################################################################
 import mysql.connector
 from tabulate import tabulate
 
-
 mydb = mysql.connector.connect(
-   host="localhost",
-   user="root",
-   password="useruser",
-   database="org_membership"
+  host="localhost",
+  user="root",
+  password="mysqlpw",
+  database="org_membership"
 )
-
 
 mycursor = mydb.cursor()
 
-
 # Read the SQL file with UTF-8 encoding
-with open('C:/Users/Leon/Downloads/try_milestone3.sql', 'r', encoding='utf-8') as f:
-   sql_script = f.read()
+with open(r'D:/CodingProjects/CMSC127/CMSC127-Final-Project/Cubelo_Mirano_Jamison_ST26L_Milestone_3.sql', 'r', encoding='utf-8') as f:
+  sql_script = f.read()
 
 statements = sql_script.split(';')
 
 for statement in statements:
-   statement = statement.strip()
-   if statement:
-       try:
-           mycursor.execute(statement)
+  statement = statement.strip()
+  if statement:
+      try:
+          mycursor.execute(statement)
 
-           while mycursor.nextset():
-               pass
+          while mycursor.nextset():
+              pass
 
-       except mysql.connector.Error as err:
-           print(f"Error in statement: {statement}")
-           print(err)
+      except mysql.connector.Error as err:
+          print(f"Error in statement: {statement}")
+          print(err)
 
 mydb.commit()
 print("SQL file imported successfully.")
 
+# COMMON FUNCTIONS #############################################################################################################################
+
+def select_an_org():
+  mycursor.execute("SELECT organization_id AS ID, organization_name AS Name, organization_type AS Type FROM organization")
+  result = mycursor.fetchall()
+  headers = [i[0] for i in mycursor.description]
+  print(tabulate(result, headers=headers, tablefmt="pretty")) # print the organization table
+  orgId = input("(Press ENTER to go back to home)\nSelect an organization to view (Enter ID):  ")
+  mycursor.execute("SELECT organization_id AS ID FROM organization")
+  result = mycursor.fetchall()
+  orgIdInResult = False
+  # Check if org id is in the database
+  for x in result:
+    if orgId in x:
+        orgIdInResult = True
+  
+  return  orgId, orgIdInResult
+
+def select_a_committee(orgId): 
+  committee = input("Enter a committee: ")
+  # check if input is in the list of committees
+  query = 'SELECT DISTINCT m.committee FROM member m JOIN member_has_organization mho ON m.student_id = mho.student_id WHERE mho.organization_id = %s AND m.committee IS NOT NULL;'
+  mycursor.execute(query, orgId)
+  result = mycursor.fetchall()
+  commInResult = False
+  # Check if org id is in the database
+  for x in result:
+    if orgId in x:
+        commInResult = True
+
+  return committee, commInResult
+
+# MENU FUNCTIONS ##############################################################################################################################
 
 def display_menu():
     while True:
@@ -45,6 +76,7 @@ def display_menu():
       print("[2] Update a database")
       print("[3] Insert data")
       print("[4] Delete from database")
+      print("[5] Save changes")
       print("[0] Exit")
       print("="*50)
 
@@ -58,6 +90,9 @@ def display_menu():
           insert_database()
       elif choice == "4":
           delete_database()
+      elif choice == "5":
+          mydb.commit()
+          print("Changes saved successfully.\n")
       elif choice == "0":
           exit_system()
           break
@@ -75,21 +110,9 @@ def view_all_orgs():
     print("\n"+"-"*50)
     print("ALL ORGANIZATIONS".center(50))
     print("-"*50)
-    mycursor.execute("SELECT SUBSTRING(organization_id, 4) AS ID, organization_name AS Name, "
-                     "organization_type AS Type FROM organization")
-    result = mycursor.fetchall()
-    headers = [i[0] for i in mycursor.description]
-    print(tabulate(result, headers=headers, tablefmt="pretty"))
+    orgId, orgIdInResult = select_an_org()
+    print("\n\n"+"-"*50)
 
-    orgId = input("(Press ENTER to go back to home)\nSelect an organization to view (Enter ID):  ")
-    mycursor.execute("SELECT SUBSTRING(organization_id, 4) AS ID FROM organization")
-    result = mycursor.fetchall()
-    orgIdInResult = False
-
-    # Check if org id is in the database
-    for x in result:
-      if orgId in x:
-        orgIdInResult = True
     if orgId==None:
       print("Organization ID cannot be empty!\n")
       continue
@@ -149,21 +172,26 @@ def view_org_committees(orgId):
 
 
 def view_all_committees(orgId):
-  print("")
-  print("Finance")
-  print("Logistics")
-  print("Media")
-  print("Events")
-  print("Executive")
-  print("Membership")
-  print("")
+  # print("")
+  # print("Finance")
+  # print("Logistics")
+  # print("Media")
+  # print("Events")
+  # print("Executive")
+  # print("Membership")
+  # print("")
 
-  elements = [["Finance"], ["Logistics"], ["Media"], ["Events"], ["Executive"], ["Membership"]]
-  print(tabulate(elements, headers=["Committees"], tablefmt="pretty"))
+  # elements = [["Finance"], ["Logistics"], ["Media"], ["Events"], ["Executive"], ["Membership"]]
+  # print(tabulate(elements, headers=["Committees"], tablefmt="pretty"))
 
+  query = "SELECT DISTINCT m.committee FROM member m JOIN member_has_organization mho ON m.student_id = mho.student_id WHERE mho.organization_id = %s AND m.committee IS NOT NULL;"
+  mycursor.execute(query, orgId)
+  result = mycursor.fetchall()
+  headers = [i[0] for i in mycursor.description]
+  print(tabulate(result, headers=headers, tablefmt="pretty"))
 
 def view_committee_members(orgId, committee):
-  orgId = "ORG" + orgId
+  
   query = (
     "SELECT m.student_id AS 'Student Number' , CONCAT(first_name, ' ', last_name) AS Name FROM member m "
     "JOIN member_has_organization mho ON m.student_id = mho.student_id "
@@ -216,12 +244,12 @@ def view_org_members(orgId):
 
 
 def show_all_members(orgId):
-  orgId = "ORG" + orgId
+  
   query = ("SELECT m.student_id AS 'Student Number', CONCAT(first_name, ' ', last_name) AS Name, "
-           " committee AS Committee, role AS Role FROM member m "
-           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
-           "JOIN organization o ON mho.organization_id = o.organization_id "
-           "WHERE o.organization_id = %s")
+          " committee AS Committee, role AS Role FROM member m "
+          "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+          "JOIN organization o ON mho.organization_id = o.organization_id "
+          "WHERE o.organization_id = %s")
   mycursor.execute(query, (orgId,))
   result = mycursor.fetchall()
   headers = [i[0] for i in mycursor.description]
@@ -229,12 +257,12 @@ def show_all_members(orgId):
 
 
 def show_a_member(memId, orgId):
-  orgId = "ORG" + orgId
+  
   query = ("SELECT m.student_id AS 'Student Number', CONCAT(first_name, ' ', last_name) AS Name, "
-           "committee AS Committee, role AS Role, status AS Status, batch AS Batch, gender AS Gender FROM member m "
-           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
-           "JOIN organization o ON mho.organization_id = o.organization_id "
-           "WHERE o.organization_id = %s AND m.student_id = %s")
+          "committee AS Committee, role AS Role, status AS Status, batch AS Batch, gender AS Gender FROM member m "
+          "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+          "JOIN organization o ON mho.organization_id = o.organization_id "
+          "WHERE o.organization_id = %s AND m.student_id = %s")
   mycursor.execute(query, (orgId, memId))
   result = mycursor.fetchall()
   if not result:
@@ -245,14 +273,14 @@ def show_a_member(memId, orgId):
 
 
 def show_mem_status(orgId):
-  orgId = "ORG" + orgId
+  
   query = ("SELECT m.student_id AS 'Student Number', CONCAT(first_name, ' ', last_name) AS Name, mpf.payment_status AS 'Payment Status' "
-           "FROM member m "
-           "JOIN member_has_organization_and_fee mhoaf ON m.student_id = mhoaf.student_id "
-           "JOIN organization o ON mhoaf.organization_id = o.organization_id "
-           "JOIN fee f ON mhoaf.payment_id = f.payment_id "
-           "JOIN member_pays_fee mpf ON f.payment_id = mpf.payment_id "
-           "WHERE o.organization_id = %s AND status = 'Active' AND mpf.payment_status = 'Paid' ")
+          "FROM member m "
+          "JOIN member_has_organization_and_fee mhoaf ON m.student_id = mhoaf.student_id "
+          "JOIN organization o ON mhoaf.organization_id = o.organization_id "
+          "JOIN fee f ON mhoaf.payment_id = f.payment_id "
+          "JOIN member_pays_fee mpf ON f.payment_id = mpf.payment_id "
+          "WHERE o.organization_id = %s AND status = 'Active' AND mpf.payment_status = 'Paid' ")
   mycursor.execute(query, (orgId,))
   activeresult = mycursor.fetchall()
 
@@ -262,9 +290,9 @@ def show_mem_status(orgId):
     print(tabulate(activeresult, headers=["Active", "Name", "Payment Status (Membership)"], tablefmt="pretty"))
 
   query = ("SELECT m.student_id AS 'Student Number', CONCAT(first_name, ' ', last_name) AS Name FROM member m "
-           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
-           "JOIN organization o ON mho.organization_id = o.organization_id "
-           "WHERE o.organization_id = %s AND status = 'Inactive'")
+          "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+          "JOIN organization o ON mho.organization_id = o.organization_id "
+          "WHERE o.organization_id = %s AND status = 'Inactive'")
   mycursor.execute(query, (orgId,))
   inactiveresult = mycursor.fetchall()
 
@@ -274,9 +302,9 @@ def show_mem_status(orgId):
     print(tabulate(inactiveresult, headers=["Inactive", "Name"], tablefmt="pretty"))
 
   query = ("SELECT m.student_id AS 'Student Number', CONCAT(first_name, ' ', last_name) AS Name FROM member m "
-           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
-           "JOIN organization o ON mho.organization_id = o.organization_id "
-           "WHERE o.organization_id = %s AND status = 'Expelled'")
+          "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+          "JOIN organization o ON mho.organization_id = o.organization_id "
+          "WHERE o.organization_id = %s AND status = 'Expelled'")
   mycursor.execute(query, (orgId,))
   expelledresult = mycursor.fetchall()
 
@@ -286,9 +314,9 @@ def show_mem_status(orgId):
     print(tabulate(expelledresult, headers=["Expelled", "Name"], tablefmt="pretty"))
 
   query = ("SELECT m.student_id AS 'Student Number', CONCAT(first_name, ' ', last_name) AS Name FROM member m "
-           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
-           "JOIN organization o ON mho.organization_id = o.organization_id "
-           "WHERE o.organization_id = %s AND status = 'Suspended'")
+          "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+          "JOIN organization o ON mho.organization_id = o.organization_id "
+          "WHERE o.organization_id = %s AND status = 'Suspended'")
   mycursor.execute(query, (orgId,))
   suspendedresult = mycursor.fetchall()
 
@@ -298,9 +326,9 @@ def show_mem_status(orgId):
     print(tabulate(suspendedresult, headers=["Suspended", "Name"], tablefmt="pretty"))
 
   query = ("SELECT m.student_id AS 'Student Number', CONCAT(first_name, ' ', last_name) AS Name FROM member m "
-           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
-           "JOIN organization o ON mho.organization_id = o.organization_id "
-           "WHERE o.organization_id = %s AND status = 'Alumni'")
+          "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+          "JOIN organization o ON mho.organization_id = o.organization_id "
+          "WHERE o.organization_id = %s AND status = 'Alumni'")
   mycursor.execute(query, (orgId,))
   alumniresult = mycursor.fetchall()
 
@@ -311,11 +339,11 @@ def show_mem_status(orgId):
 
 
 def show_batches(orgId):
-  orgId = "ORG" + orgId
+  
   query = ("SELECT SUBSTRING(m.student_id, 1, 4) AS 'Batch', CONCAT(first_name, ' ', last_name) AS Name FROM member m "
-           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
-           "JOIN organization o ON mho.organization_id = o.organization_id "
-           "WHERE o.organization_id = %s ORDER BY m.student_id")
+          "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+          "JOIN organization o ON mho.organization_id = o.organization_id "
+          "WHERE o.organization_id = %s ORDER BY m.student_id")
   mycursor.execute(query, (orgId,))
   result = mycursor.fetchall()
 
@@ -324,11 +352,11 @@ def show_batches(orgId):
 
 
 def show_deg_prog(orgId):
-  orgId = "ORG" + orgId
+  
   query = ("SELECT degree_program AS 'Degree Program', CONCAT(first_name, ' ', last_name) AS Name FROM member m "
-           "JOIN member_has_organization mho ON m.student_id = mho.student_id "
-           "JOIN organization o ON mho.organization_id = o.organization_id "
-           "WHERE o.organization_id = %s ORDER BY m.degree_program")
+          "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+          "JOIN organization o ON mho.organization_id = o.organization_id "
+          "WHERE o.organization_id = %s ORDER BY m.degree_program")
   mycursor.execute(query, (orgId,))
   result = mycursor.fetchall()
 
@@ -367,10 +395,10 @@ def view_org_fees(orgId):
 
 
 def show_all_fees(orgId):
-  orgId = "ORG" + orgId
+  
   query = ("SELECT SUBSTRING(payment_id, 4) AS ID, due_date AS 'Due Date', purpose AS Purpose, amount AS Amount "
-           "FROM fee f JOIN organization o ON f.organization_id = o.organization_id "
-           "WHERE f.organization_id = %s")
+          "FROM fee f JOIN organization o ON f.organization_id = o.organization_id "
+          "WHERE f.organization_id = %s")
   mycursor.execute(query, (orgId,))
   result = mycursor.fetchall()
   if not result:
@@ -381,11 +409,11 @@ def show_all_fees(orgId):
 
 
 def show_a_fee(feeID, orgId):
-  orgId = "ORG" + orgId
+  
   feeID = "FEE" + feeID
   query = ("SELECT SUBSTRING(f.payment_id, 4) AS 'ID', due_date AS 'Due Date', purpose AS Purpose, amount AS Amount "
-           "FROM fee f JOIN organization o on f.organization_id = o.organization_id " 
-           "WHERE o.organization_id = %s AND f.payment_id = %s")
+          "FROM fee f JOIN organization o on f.organization_id = o.organization_id " 
+          "WHERE o.organization_id = %s AND f.payment_id = %s")
   mycursor.execute(query, (orgId, feeID))
   result = mycursor.fetchall()
   if not result:
@@ -396,10 +424,10 @@ def show_a_fee(feeID, orgId):
 
 
 def show_history(orgId):
-  orgId = "ORG" + orgId
+  
   query = ("SELECT SUBSTRING(f.payment_id, 4) AS 'ID', due_date AS 'Due Date', purpose AS Purpose, amount AS Amount "
-           "FROM fee f JOIN organization o on f.organization_id = o.organization_id "
-           "WHERE o.organization_id = %s AND f.due_date < CURDATE()")
+          "FROM fee f JOIN organization o on f.organization_id = o.organization_id "
+          "WHERE o.organization_id = %s AND f.due_date < CURDATE()")
   mycursor.execute(query, (orgId,))
   result = mycursor.fetchall()
   if not result:
@@ -414,10 +442,10 @@ def show_history(orgId):
 
 
 def show_pending_fees(orgId):
-  orgId = "ORG" + orgId
+  
   query = ("SELECT SUBSTRING(f.payment_id, 4) AS 'ID', due_date AS 'Due Date', purpose AS Purpose, amount AS Amount "
-           "FROM fee f JOIN organization o on f.organization_id = o.organization_id "
-           "WHERE o.organization_id = %s AND f.due_date > CURDATE()")
+          "FROM fee f JOIN organization o on f.organization_id = o.organization_id "
+          "WHERE o.organization_id = %s AND f.due_date > CURDATE()")
   mycursor.execute(query, (orgId,))
   result = mycursor.fetchall()
   if not result:
@@ -434,12 +462,12 @@ def show_pending_fees(orgId):
 
 def show_ontime_status(orgId):
   query = ("SELECT mpf.student_id AS 'Student Number', CONCAT(m.first_name, ' ', m.last_name) AS 'Name', "
-           "mpf.payment_id AS 'Payment ID', mpf.payment_status AS 'Status', mpf.on_time_status AS 'On Time', payment_date AS 'Payment Date' "
-           "FROM member_pays_fee mpf "
-           "JOIN member_has_organization_and_fee mhoaf on mpf.student_id = mhoaf.student_id "
-           "JOIN organization o ON mhoaf.organization_id = o.organization_id "
-           "JOIN member m ON mhoaf.student_id = m.student_id "
-           "WHERE o.organization_id = %s AND mpf.on_time_status = 'On time' ")
+          "mpf.payment_id AS 'Payment ID', mpf.payment_status AS 'Status', mpf.on_time_status AS 'On Time', payment_date AS 'Payment Date' "
+          "FROM member_pays_fee mpf "
+          "JOIN member_has_organization_and_fee mhoaf on mpf.student_id = mhoaf.student_id "
+          "JOIN organization o ON mhoaf.organization_id = o.organization_id "
+          "JOIN member m ON mhoaf.student_id = m.student_id "
+          "WHERE o.organization_id = %s AND mpf.on_time_status = 'On time' ")
   mycursor.execute(query, (orgId,))
   result = mycursor.fetchall()
   if not result:
@@ -452,13 +480,13 @@ def show_ontime_status(orgId):
 
 def show_payment_status(orgId):
   query = ("SELECT mpf.student_id AS 'Student Number', CONCAT(m.first_name, ' ', m.last_name) AS 'Name', "
-           "mpf.payment_id AS 'Payment ID', mpf.payment_status AS 'Status', mpf.on_time_status AS 'On Time', payment_date AS 'Payment Date' "
-           "FROM member_pays_fee mpf "
-           "JOIN member_has_organization_and_fee mhoaf on mpf.student_id = mhoaf.student_id "
-           "JOIN organization o ON mhoaf.organization_id = o.organization_id "
-           "JOIN member m ON mhoaf.student_id = m.student_id "
-           "JOIN fee f ON mhoaf.payment_id = f.payment_id "
-           "WHERE o.organization_id = %s AND CURDATE() < f.due_date ")
+          "mpf.payment_id AS 'Payment ID', mpf.payment_status AS 'Status', mpf.on_time_status AS 'On Time', payment_date AS 'Payment Date' "
+          "FROM member_pays_fee mpf "
+          "JOIN member_has_organization_and_fee mhoaf on mpf.student_id = mhoaf.student_id "
+          "JOIN organization o ON mhoaf.organization_id = o.organization_id "
+          "JOIN member m ON mhoaf.student_id = m.student_id "
+          "JOIN fee f ON mhoaf.payment_id = f.payment_id "
+          "WHERE o.organization_id = %s AND CURDATE() < f.due_date ")
   mycursor.execute(query, (orgId,))
   result = mycursor.fetchall()
   if not result:
@@ -472,24 +500,23 @@ def show_payment_status(orgId):
 ########################### UPDATE ################################
 def update_database():
   while True:
-    print("\n"+"-"*50)
+    print("\n" + "-"*50)
     print("UPDATE AN ORGANIZATION".center(50))
-    print("-"*50)
-    print("\n TABLE \n") # PLACEHOLDER: display the organizations table here
-    print("\n"+"-"*50)
-
-    orgId = input("(Press ENTER to go back to home)\nSelect an organization to update:  ")
+    print("-"*50 + "\n")
+    orgId, orgIdInResult = select_an_org()
+    print("\n\n"+"-"*50)
+    
+    # Answer Validation 
     if orgId==None:
       print("Organization ID cannot be empty!\n")
       continue
     elif orgId=="":
       return
-    # elif orgId != PLACEHOLDER: palagyan ng validation if wala sa choices yung sinagot nila
-    # print("Organization not found.\n")
-    # continue
+    elif orgIdInResult == False:
+      print("Organization not found.\n")
+      continue
     else:
       display_update_an_org_menu(orgId)
-
 
 def display_update_an_org_menu(orgId):
   while True:
@@ -514,10 +541,9 @@ def display_update_an_org_menu(orgId):
     else:
       print("Invalid choice. Please try again.\n")
 
-
 def update_a_committee(orgId):
   print("\nUPDATE A COMMITTEE\n")
-  print("TABLE\n") # PLACEHOLDER : show committees of the org
+  view_all_committees(orgId)
   while True:
     print("[1] Delete a committee")
     print("[2] Rename a committee")
@@ -526,26 +552,26 @@ def update_a_committee(orgId):
     choice = input("Select a choice: ")
 
     if choice == '1':
-      committee = input("Enter committee to delete: ")
+      committee, commInResult = select_a_committee(orgId)
       if committee==None or committee=="":
         print("please enter name of committee.\n")
         continue
-      # elif committee != PLACEHOLDER: palagyan ng validation if wala sa choices yung sinagot nila
-      # print("committee not found.\n")
-      # continue
+      elif commInResult == False:
+        print("Committee not found.\n")
+        continue
       else:
         delete_a_committee(orgId, committee)
+    
     elif choice == '2':
-      committee = input("Enter committee to rename: ")
+      committee, commInResult = select_a_committee(orgId)
       if committee==None or committee=="":
         print("please enter name of committee.")
         continue
-      # elif committee != PLACEHOLDER: palagyan ng validation if wala sa choices yung sinagot nila
-      # print("committee not found.\n")
-      # continue
+      elif commInResult == False:
+        print("Committee not found.\n")
+        continue
       else:
-        newName = input("Enter new committee name: ")
-        rename_a_committe(orgId, committee, newName)
+        rename_a_committe(orgId, committee)
     elif choice == '0':
       return
     else:
@@ -553,10 +579,26 @@ def update_a_committee(orgId):
 
 
 def delete_a_committee(orgId, committee):
-  print("\ndelete_a_committee\n") # PLACEHOLDER
+  query = ("UPDATE member SET committee = NULL "
+        "WHERE student_id IN ( "
+        "SELECT student_id FROM ( "
+        "SELECT m.student_id FROM member m "
+        "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+        "WHERE mho.organization_id = %s AND m.committee = %s "
+        ") AS temp"
+        ")")
+  mycursor.execute(query, (committee, orgId, committee))
+  print(f"\nCommittee '{committee}' has been deleted from organization with ID {orgId}.\n") # print(f"\nDeleted {mycursor.rowcount} member(s).")
 
+  # show updated member table
+  mycursor.execute("SELECT * FROM member")
+  members = mycursor.fetchall()
+  headers = [col[0] for col in mycursor.description]
+  print(tabulate(members, headers=headers, tablefmt="pretty"))
+  print("")
 
-def rename_a_committe(orgId, committee, newName):
+def rename_a_committe(orgId, committee):
+  newName = input("Enter new committee name: ")
   print("\nrename_a_committe\n") # PLACEHOLDER
 
 
