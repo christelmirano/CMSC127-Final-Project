@@ -54,7 +54,7 @@ def select_an_org():
 def select_a_committee(orgId): 
   committee = input("Enter a committee: ")
   # check if input is in the list of committees
-  query = 'SELECT DISTINCT m.committee FROM member m JOIN member_has_organization mho ON m.student_id = mho.student_id WHERE mho.organization_id = %s AND m.committee IS NOT NULL;'
+  query = 'SELECT DISTINCT m.committee AS Committee FROM member m JOIN member_has_organization mho ON m.student_id = mho.student_id WHERE mho.organization_id = %s AND m.committee IS NOT NULL;'
   mycursor.execute(query, orgId)
   result = mycursor.fetchall()
   commInResult = False
@@ -64,6 +64,54 @@ def select_a_committee(orgId):
         commInResult = True
 
   return committee, commInResult
+
+def select_a_member(orgId):
+  memId = input("Enter a member (ID): ")
+  # check if input is in the list of committees
+  query = 'SELECT DISTINCT m.student_id AS Student ID, m.first_name AS First Name, m.last_name AS Last Name FROM member m JOIN member_has_organization mho ON m.student_id = mho.student_id WHERE mho.organization_id = %s;'
+  mycursor.execute(query, orgId)
+  result = mycursor.fetchall()
+  memIdInResult = False
+  # Check if org id is in the database
+  for x in result:
+    if orgId in x:
+        memIdInResult = True
+
+  return memId, memIdInResult
+  
+def show_all_member_info(orgId):
+    query = ("SELECT m.student_id AS 'Student Number', CONCAT(m.first_name, ' ', m.last_name) AS Name, m.status AS Status, m.batch AS Batch, m.degree_program AS 'Degree Program', m.committee AS Committee, m.role AS Role FROM member m JOIN member_has_organization mho ON m.student_id = mho.student_id WHERE mho.organization_id = %s;")
+    mycursor.execute(query, (orgId))
+    members = mycursor.fetchall()
+    headers = [col[0] for col in mycursor.description]
+    print(tabulate(members, headers=headers, tablefmt="pretty"))
+    print("")
+
+def select_a_fee(orgId):
+  feeId = input("Enter a payment (ID): ")
+  # check if input is in the list of fees
+  query = 'SELECT f.payment_id AS "Fee ID", f.organization_id AS "Organization ID", f.purpose AS "Purpose", f.amount AS "Amount", f.due_date AS "Due Date" FROM fee f WHERE f.organization_id = %s;'
+  mycursor.execute(query, orgId)
+  result = mycursor.fetchall()
+  feeIdInResult = False
+  # Check if fee id is in the database
+  for x in result:
+    if orgId in x:
+        feeIdInResult = True
+
+  return feeId, feeIdInResult
+
+def show_all_org_fee_info(orgId):
+    query = ("SELECT f.payment_id AS 'Payment ID', f.due_date AS 'Due Date', f.purpose AS Purpose, f.amount AS Amount FROM fee f WHERE f.organization_id = %s;")
+    mycursor.execute(query, (orgId))
+    fees = mycursor.fetchall()
+    headers = [col[0] for col in mycursor.description]
+    print(tabulate(fees, headers=headers, tablefmt="pretty"))
+    print("")
+
+def save_changes():
+    mydb.commit()
+    print("Changes saved successfully.\n")
 
 # MENU FUNCTIONS ##############################################################################################################################
 
@@ -76,7 +124,6 @@ def display_menu():
       print("[2] Update a database")
       print("[3] Insert data")
       print("[4] Delete from database")
-      print("[5] Save changes")
       print("[0] Exit")
       print("="*50)
 
@@ -90,9 +137,6 @@ def display_menu():
           insert_database()
       elif choice == "4":
           delete_database()
-      elif choice == "5":
-          mydb.commit()
-          print("Changes saved successfully.\n")
       elif choice == "0":
           exit_system()
           break
@@ -585,17 +629,12 @@ def delete_a_committee(orgId, committee):
         "SELECT m.student_id FROM member m "
         "JOIN member_has_organization mho ON m.student_id = mho.student_id "
         "WHERE mho.organization_id = %s AND m.committee = %s "
-        ") AS temp"
+        ") AS temp "
         ")")
   mycursor.execute(query, (committee, orgId, committee))
+  save_changes()
   print(f"\nCommittee '{committee}' has been deleted from organization with ID {orgId}.\n") # print(f"\nDeleted {mycursor.rowcount} member(s).")
-
-  # show updated member table
-  mycursor.execute("SELECT * FROM member")
-  members = mycursor.fetchall()
-  headers = [col[0] for col in mycursor.description]
-  print(tabulate(members, headers=headers, tablefmt="pretty"))
-  print("")
+  show_all_member_info(orgId) # show updated member table
 
 def rename_a_committe(orgId, committee):
   newName = input("Enter new committee name: ")
@@ -605,17 +644,12 @@ def rename_a_committe(orgId, committee):
         "SELECT m.student_id FROM member m "
         "JOIN member_has_organization mho ON m.student_id = mho.student_id "
         "WHERE mho.organization_id = %s AND m.committee = %s "
-        ") AS temp"
+        ") AS temp "
         ")")
   mycursor.execute(query, (newName, orgId, committee))
+  save_changes()
   print(f"\nCommittee '{committee}' has been renamed to {newName}.\n") 
-
-  # show updated member table
-  mycursor.execute("SELECT * FROM member")
-  members = mycursor.fetchall()
-  headers = [col[0] for col in mycursor.description]
-  print(tabulate(members, headers=headers, tablefmt="pretty"))
-  print("")
+  show_all_member_info(orgId) # show updated member table
 
 def update_a_member(orgId):
   print("\nUPDATE A MEMBER\n")
@@ -626,22 +660,26 @@ def update_a_member(orgId):
     print("[4] Update gender")
     print("[5] Update committee")
     print("[0] Back")
-
+    
     choice = input("Select a choice: ")
-    memId = input("Enter student id: ")
+    show_all_member_info(orgId)
+    memId, memIdInResult = select_a_member(orgId)
 
     if memId==None or memId=="":
       print("Student id cannot be empty!\n")
       continue
+    elif memIdInResult == False:
+      print("Student ID not found.\n")
+      continue
 
     if choice == '1':
-      update = input("Enter NEW status: ")
+      update = input("Enter NEW status (Active/ Inactive/ Expelled/ Suspended/ Alumni): ")
       if update==None or update=="":
         print("Nothing updated!\n")
         continue
       update_active_status(orgId, memId, update)
     elif choice == '2':
-      update = input("Enter NEW role: ")
+      update = input("Enter NEW role (President/ Vice President/ Secretary/ Member): ")
       if update==None or update=="":
         print("Nothing updated!\n")
         continue
@@ -671,23 +709,78 @@ def update_a_member(orgId):
 
 
 def update_active_status(orgId, memId, update):
-  print("\nupdate_active_status\n") # PLACEHOLDER
+  query = ("UPDATE member SET status = %s "
+        "WHERE student_id IN ( "
+        "SELECT student_id FROM ( "
+        "SELECT m.student_id FROM member m "
+        "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+        "WHERE mho.organization_id = %s AND m.student_id = %s "
+        ") AS temp "
+        ")")
+  mycursor.execute(query, (update, orgId, memId))
+  save_changes()
+  print(f"\nStatus of member '{memId}' has been changed to {update}.\n") 
+  show_all_member_info(orgId) # show updated member table
 
 
 def update_role(orgId, memId, update):
-  print("\nupdate_role\n") # PLACEHOLDER
+  query = ("UPDATE member SET role = %s "
+        "WHERE student_id IN ( "
+        "SELECT student_id FROM ( "
+        "SELECT m.student_id FROM member m "
+        "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+        "WHERE mho.organization_id = %s AND m.student_id = %s "
+        ") AS temp "
+        ")")
+  mycursor.execute(query, (update, orgId, memId))
+  save_changes()
+  print(f"\nRole of member '{memId}' has been changed to {update}.\n") 
+  show_all_member_info(orgId) # show updated member table
 
 
 def update_degree_program(orgId, memId, update):
-  print("\nupdate_degree_program\n") # PLACEHOLDER
+  query = ("UPDATE member SET degree_program = %s "
+        "WHERE student_id IN ( "
+        "SELECT student_id FROM ( "
+        "SELECT m.student_id FROM member m "
+        "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+        "WHERE mho.organization_id = %s AND m.student_id = %s "
+        ") AS temp "
+        ")")
+  mycursor.execute(query, (update, orgId, memId))
+  save_changes()
+  print(f"\nDegree program of member '{memId}' has been changed to {update}.\n") 
+  show_all_member_info(orgId) # show updated member table
 
 
 def update_gender(orgId, memId, update):
-  print("\nupdate_gender\n") # PLACEHOLDER
+  query = ("UPDATE member SET gender = %s "
+        "WHERE student_id IN ( "
+        "SELECT student_id FROM ( "
+        "SELECT m.student_id FROM member m "
+        "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+        "WHERE mho.organization_id = %s AND m.student_id = %s "
+        ") AS temp "
+        ")")
+  mycursor.execute(query, (update, orgId, memId))
+  save_changes()
+  print(f"\nGender of member '{memId}' has been changed to {update}.\n") 
+  show_all_member_info(orgId) # show updated member table
 
 
 def update_member_committee(orgId, memId, update):
-  print("\nupdate_member_committee\n") # PLACEHOLDER
+  query = ("UPDATE member SET committee = %s "
+        "WHERE student_id IN ( "
+        "SELECT student_id FROM ( "
+        "SELECT m.student_id FROM member m "
+        "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+        "WHERE mho.organization_id = %s AND m.student_id = %s "
+        ") AS temp "
+        ")")
+  mycursor.execute(query, (update, orgId, memId))
+  save_changes()
+  print(f"\nCommittee of member '{memId}' has been changed to {update}.\n") 
+  show_all_member_info(orgId) # show updated member table
 
 
 def update_a_fee(orgId):
@@ -698,11 +791,14 @@ def update_a_fee(orgId):
     print("[3] Update amount")
     print("[0] Back")
 
-    feeId = input("Enter fee id: ")
     choice = input("Select a choice: ")
+    feeId, feeIdInResult = select_a_fee(orgId)
 
     if feeId==None or feeId=="":
       print("Fee id cannot be empty!\n")
+      continue
+    elif feeIdInResult == False:
+      print("Fee ID not found.\n")
       continue
 
     if choice == '1':
