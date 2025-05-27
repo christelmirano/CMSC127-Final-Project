@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS `member` (
     role ENUM('President', 'Vice President', 'Secretary', 'Member'),
     batch INT NOT NULL,
     status ENUM('Active', 'Inactive', 'Expelled', 'Suspended', 'Alumni'),
-    committee VARCHAR(50) NOT NULL,
+    committee VARCHAR(50),
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
     gender VARCHAR(10)
@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS `member_has_organization_and_fee` (
 INSERT INTO `member` (`student_id`, `degree_program`, `role`, `batch`, `status`, `gender`, `committee`, `first_name`, `last_name`) VALUES
     ('2023-01234', 'BS Computer Science', 'President', 2023, 'Active', 'Male', 'Events', 'Andrew', 'Elizalde'),
     ('2023-01666', 'BS Computer Science', 'Member', 2023, 'Expelled', 'Male', 'Events', 'Hannah', 'Monterde'),
+    ('2023-12345', 'BS Computer Science', 'Secretary', 2023, 'Active', 'Female', 'Executive', 'Leon', 'Jamison'),
     ('2022-03456', 'BS Applied Mathematics', 'Vice President', 2022, 'Active', 'Female', 'Finance', 'Ange', 'Smith'),
     ('2023-38465', 'BS Biology', 'Member', 2023, 'Inactive', 'Male', 'Logistics', 'Mark', 'Lee'),
     ('2021-98765', 'BS Chemistry', 'Member', 2021, 'Active', 'Female', 'Media', 'Christel', 'Galvez'),
@@ -156,7 +157,7 @@ INSERT INTO `member_has_organization` (`student_id`, `organization_id`, `semeste
     ('2022-03456', 'ORG002', 'Second'),
     ('2023-38465', 'ORG003', 'Midyear'),
     ('2021-98765', 'ORG004', 'Second'),
-    ('2023-12345', 'ORG005', 'First');
+    ('2023-12345', 'ORG005', 'First'),
     ('2022-11112', 'ORG006', 'Second'),
     ('2021-22223', 'ORG007', 'Midyear'),
     ('2023-33334', 'ORG008', 'First'),
