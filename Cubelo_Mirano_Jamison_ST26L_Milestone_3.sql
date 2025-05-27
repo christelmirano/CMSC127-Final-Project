@@ -20,10 +20,10 @@ CREATE TABLE IF NOT EXISTS `member` (
     role ENUM('President', 'Vice President', 'Secretary', 'Member'),
     batch INT NOT NULL,
     status ENUM('Active', 'Inactive', 'Expelled', 'Suspended', 'Alumni'),
-    committee ENUM('Finance', 'Logistics', 'Media', 'Events', 'Executive', 'Membership') ,
+    committee VARCHAR(50) NOT NULL,
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
-    gender ENUM('Male', 'Female')
+    gender VARCHAR(10)
 );
 
 -- create ORGANIZATION Table
