@@ -12,3 +12,8 @@
     "python3 -m pip install mysql-connector-python"
 
 4. run "python <file_name>.py"
+
+
+References used:
+https://pypi.org/project/mysql-connector-python/ => for connecting to SQL database <br>
+https://pypi.org/project/tabulate/ => for formatting
