@@ -14,6 +14,6 @@
 4. run "python <file_name>.py"
 
 
-References used:
+References used: <br>
 https://pypi.org/project/mysql-connector-python/ => for connecting to SQL database <br>
 https://pypi.org/project/tabulate/ => for formatting
