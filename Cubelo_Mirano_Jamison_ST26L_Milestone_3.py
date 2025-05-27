@@ -599,8 +599,23 @@ def delete_a_committee(orgId, committee):
 
 def rename_a_committe(orgId, committee):
   newName = input("Enter new committee name: ")
-  print("\nrename_a_committe\n") # PLACEHOLDER
+  query = ("UPDATE member SET committee = %s "
+        "WHERE student_id IN ( "
+        "SELECT student_id FROM ( "
+        "SELECT m.student_id FROM member m "
+        "JOIN member_has_organization mho ON m.student_id = mho.student_id "
+        "WHERE mho.organization_id = %s AND m.committee = %s "
+        ") AS temp"
+        ")")
+  mycursor.execute(query, (newName, orgId, committee))
+  print(f"\nCommittee '{committee}' has been renamed to {newName}.\n") 
 
+  # show updated member table
+  mycursor.execute("SELECT * FROM member")
+  members = mycursor.fetchall()
+  headers = [col[0] for col in mycursor.description]
+  print(tabulate(members, headers=headers, tablefmt="pretty"))
+  print("")
 
 def update_a_member(orgId):
   print("\nUPDATE A MEMBER\n")
