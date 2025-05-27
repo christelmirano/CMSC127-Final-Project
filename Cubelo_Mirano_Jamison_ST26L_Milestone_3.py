@@ -119,17 +119,67 @@ def show_all_member_fee_info(orgId):
     print("")
 
 def show_member_payment_info(orgId, feeId, memId):
-  query = ("SELECT m.student_id, m.first_name, m.last_name, mpf.payment_status, mpf.on_time_status, mpf.payment_date FROM member_pays_fee mpf JOIN member m ON mpf.student_id = m.student_id WHERE mpf.payment_status = 'Paid' AND mpf.student_id = %s AND mpf.payment_id = %s;")
-  mycursor.execute(query, (memId, orgId))
+  query = ("SELECT m.student_id, m.first_name, m.last_name, mpf.payment_id, mpf.payment_status, mpf.on_time_status, mpf.payment_date, o.organization_id, o.organization_name FROM member_pays_fee mpf JOIN member m ON mpf.student_id = m.student_id JOIN member_has_organization_and_fee mhof ON mpf.student_id = mhof.student_id AND mpf.payment_id = mhof.payment_id JOIN organization o ON mhof.organization_id = o.organization_id WHERE mpf.student_id = %s AND mpf.payment_id = %s AND o.organization_id = %s;")
+  mycursor.execute(query, (memId, feeId, orgId))
   fees = mycursor.fetchall()
   headers = [col[0] for col in mycursor.description]
   print(tabulate(fees, headers=headers, tablefmt="pretty"))
   print("")
 
+def check_if_paid(orgId, feeId, memId):
+  query = ("SELECT mpf.payment_status FROM member_pays_fee mpf JOIN member m ON mpf.student_id = m.student_id JOIN member_has_organization_and_fee mhof ON mpf.student_id = mhof.student_id AND mpf.payment_id = mhof.payment_id JOIN organization o ON mhof.organization_id = o.organization_id WHERE mpf.student_id = %s AND mpf.payment_id = %s AND o.organization_id = %s;")
+  mycursor.execute(query, (memId, feeId, orgId))
+  result = mycursor.fetchall()
+  hasPaid = False
+  # Check if "Paid"
+  for x in result:
+    if x[0] == 'Paid':  # Check the first value in the tuple
+        hasPaid = True
+  
+  return hasPaid
+
+def unpaid_status_details(orgId, feeId, memId):
+  query = '''
+SELECT 
+    mpf.payment_date,
+    CASE 
+        WHEN mpf.payment_status = 'Paid' THEN NULL
+        ELSE DATEDIFF(f.due_date, CURDATE())
+    END AS days_until_due,
+    CASE 
+        WHEN mpf.payment_status = 'Unpaid' AND DATEDIFF(f.due_date, CURDATE()) < 0 THEN 'Late'
+        WHEN mpf.payment_status = 'Unpaid' AND DATEDIFF(f.due_date, CURDATE()) >= 0 THEN NULL
+        WHEN mpf.payment_status = 'Paid' AND DATEDIFF(f.due_date, mpf.payment_date) >= 0 THEN 'On time'
+        WHEN mpf.payment_status = 'Paid' AND DATEDIFF(f.due_date, mpf.payment_date) < 0 THEN 'Late'
+        ELSE NULL
+    END AS computed_on_time_status
+FROM 
+    member m
+JOIN 
+    member_has_organization_and_fee mhof 
+    ON m.student_id = mhof.student_id
+JOIN 
+    organization o 
+    ON mhof.organization_id = o.organization_id
+JOIN 
+    fee f 
+    ON mhof.payment_id = f.payment_id
+LEFT JOIN 
+    member_pays_fee mpf 
+    ON m.student_id = mpf.student_id AND f.payment_id = mpf.payment_id
+WHERE 
+  m.student_id = %s AND f.payment_id = %s AND o.organization_id = %s;
+'''
+  mycursor.execute(query, (memId, feeId, orgId))
+  result = mycursor.fetchall()
+  paymentDate = result[0] 
+  daysUntilDue = result[1]
+
+  return paymentDate, daysUntilDue  
+
 def save_changes():
     mydb.commit()
     print("Changes saved successfully.\n")
-
 
 # MENU FUNCTIONS ##############################################################################################################################
 
@@ -845,17 +895,22 @@ def update_member_fee_status(orgId):
       continue
 
     if choice == '1':
-      # display yung details nung student and fee
-      show_member_payment_info(orgId, feeId, memId)
-      # function that returns if paid or not
-      print("")
+      show_member_payment_info(orgId, feeId, memId) # display yung details nung student and fee
+      hasPaid = check_if_paid(orgId, feeId, memId) # check if the member has paid the fee
+      if hasPaid:
+        print(f"\nMember {memId} has already paid the fee {feeId}. Cannot be updated.\n")
+        continue
+
+      paymentDate, daysUntilDue  = unpaid_status_details(orgId, feeId, memId)
+      print("\nUpdate Payment Status\nThis is due on: " + paymentDate + "\nDays until due: " + str(daysUntilDue) + "\n\n")
       print("[1] Has Paid")
       print("[0] Back")
 
-      paid = input("Select a choice: ")
-      if paid==None or paid=="":
-        print("choice cannot be empty!\n")
+      paidChoice = input("Select a choice: ")
+      
+      if paidChoice != '1':
         continue
+
       date = input("Enter payment date (YYYY-MM-DD): ")
       if date==None or date=="":
         print("date cannot be empty!\n")
@@ -869,8 +924,27 @@ def update_member_fee_status(orgId):
 
 
 def update_member_payment_status(orgId, feeId, memId, date):
-  print("\nupdate_member_payment_status\n") # PLACEHOLDER
-
+  query = '''
+UPDATE member_pays_fee mpf
+JOIN fee f ON mpf.payment_id = f.payment_id
+JOIN member_has_organization_and_fee mhof 
+  ON mpf.student_id = mhof.student_id AND mpf.payment_id = mhof.payment_id
+SET 
+  mpf.payment_status = 'Paid',
+  mpf.on_time_status = CASE 
+    WHEN DATEDIFF(f.due_date, %s) >= 0 THEN 'On time'
+    ELSE 'Late'
+  END
+WHERE 
+  mpf.student_id = %s 
+  AND mpf.payment_id = %s 
+  AND mhof.organization_id = %s;
+'''
+  mycursor.execute(query, (date, memId, feeId, orgId))
+  result = mycursor.fetchall()
+  save_changes()
+  print(f"\nPayment status of member '{memId}' for fee '{feeId}' has been updated to 'Paid'.\n")
+  show_member_payment_info(orgId, feeId, memId) # display yung details nung student and fee
 
 ########################### INSERT ################################
 def insert_database():
