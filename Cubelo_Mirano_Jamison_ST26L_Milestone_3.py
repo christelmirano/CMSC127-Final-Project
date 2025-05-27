@@ -16,9 +16,12 @@ mycursor = mydb.cursor()
 # with open(r'D:/CodingProjects/CMSC127/CMSC127-Final-Project/Cubelo_Mirano_Jamison_ST26L_Milestone_3.sql', 'r', encoding='utf-8') as f:
 #   sql_script = f.read()
 
+
+# with open('C:/Users/Angeline/Downloads/try_milestone3.sql', 'r', encoding='utf-8') as f:
+#    sql_script = f.read()
+
 with open('C:/Users/Leon/Downloads/try_milestone3.sql', 'r', encoding='utf-8') as f:
-with open('C:/Users/Angeline/Downloads/try_milestone3.sql', 'r', encoding='utf-8') as f:
-   sql_script = f.read()
+    sql_script = f.read()
 
 statements = sql_script.split(';')
 
@@ -296,30 +299,13 @@ def view_org_committees(orgId):
 
 
 def view_all_committees(orgId):
-  # print("")
-  # print("Finance")
-  # print("Logistics")
-  # print("Media")
-  # print("Events")
-  # print("Executive")
-  # print("Membership")
-  # print("")
-
-  # elements = [["Finance"], ["Logistics"], ["Media"], ["Events"], ["Executive"], ["Membership"]]
-  # print(tabulate(elements, headers=["Committees"], tablefmt="pretty"))
-
-  print("")
-  elements = [["Finance"], ["Logistics"], ["Media"], ["Events"], ["Executive"], ["Membership"]]
-  print(tabulate(elements, headers=["Committees"], tablefmt="pretty"))
-
   query = "SELECT DISTINCT m.committee FROM member m JOIN member_has_organization mho ON m.student_id = mho.student_id WHERE mho.organization_id = %s AND m.committee IS NOT NULL;"
   mycursor.execute(query, (orgId,))
   result = mycursor.fetchall()
   if not result:
       print("\nNo committees found.\n")
       return
-  headers = [i[0] for i in mycursor.description]
-  print(tabulate(result, headers=headers, tablefmt="pretty"))
+  print(tabulate(result, headers=["Committees"], tablefmt="pretty"))
 
 def view_committee_members(orgId, committee):
   
@@ -726,7 +712,7 @@ def delete_a_committee(orgId, committee):
   save_changes()
   print(f"\nCommittee '{committee}' has been deleted from organization with ID {orgId}.\n") # print(f"\nDeleted {mycursor.rowcount} member(s).")
   show_all_member_info(orgId) # show updated member table
-    query = """
+  query = ("""
     UPDATE member SET committee = NULL 
     WHERE student_id IN (
         SELECT student_id FROM (
@@ -736,12 +722,12 @@ def delete_a_committee(orgId, committee):
             WHERE mho.organization_id = %s AND m.committee = %s
         ) AS temp
     )
-    """
-    mycursor.execute(query, ("ORG"+orgId, committee))
-    save_changes()
-    print(f"\nCommittee '{committee}' has been deleted from organization with ID {orgId}.\n")
+    """)
+  mycursor.execute(query, ("ORG"+orgId, committee))
+  save_changes()
+  print(f"\nCommittee '{committee}' has been deleted from organization with ID {orgId}.\n")
     
-    show_all_member_info(orgId) # show updated member table
+  show_all_member_info(orgId) # show updated member table
 
 def rename_a_committe(orgId, committee):
   newName = input("Enter new committee name: ")
@@ -1729,5 +1715,5 @@ def deleting_member(orgId, memId):
         print("No members remaining in this organization")
 
 ########################### FUNCTION CALL ################################
-printpika()
+# printpika()
 display_menu()
